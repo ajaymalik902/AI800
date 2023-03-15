@@ -127,3 +127,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# datasets
+ThickBloodSmears_150/*
+.idea
+converted_images/*
+ThickBloodSmears_150.zip
+conference-latex-template_10-17-19.zip
