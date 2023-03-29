@@ -36,7 +36,7 @@ def mark_img(img_path: str, dest_dir=None):
     for para in parasites:
         color = (0, 0, 255)
         thickness = 3
-        radius = 25
+        radius = 20
         start_point, end_point = get_coordinates_for_circle(para)
         # circle(image_data, (round(start_point), round(end_point)), radius, color, thickness, lineType=LINE_AA)
         create_mask(tuple(np.array(image_size[0][1:], dtype=int)), (start_point, end_point), radius, img_path, dest_dir)
@@ -107,11 +107,11 @@ def get_images_path():
 
 
 def create_marked_images():
-    x = get_images_path()[:500]
+    x = get_images_path()[:1000]
     print(x)
-    for images in x[:400]:
+    for images in x[:850]:
         mark_img(images, dest_dir="train_data")
-    for images in x[400:]:
+    for images in x[850:]:
         mark_img(images, dest_dir="test_data")
     print("done")
 

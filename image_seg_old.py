@@ -17,8 +17,8 @@ from PIL import Image
 
 import os
 
-width = 128
-height = 128
+width = 640
+height = 480
 chnls = 3
 
 train_d = "train_data\\"
@@ -37,11 +37,10 @@ for file in os.listdir(train_d):
     if os.path.isfile(os.path.join(train_d, file)) and os.path.exists(os.path.join(train_d, file.replace(".jpg", "_masks\\"))):
         files.append(os.path.join(train_d, file))
 
-# files = files[:10]
+files = files[:5]
 
-
-X_train = np.zeros((len(files), height, width, chnls), dtype=np.uint8)
-Y_train = np.zeros((len(files), height, width, 1), dtype=bool)
+X_train = np.zeros((len(files), width, height, chnls), dtype=np.uint8)
+Y_train = np.zeros((len(files), width, height, 1), dtype=bool)
 
 if not os.path.exists("train_resize_128x128/"):
     os.mkdir("train_resize_128x128/")
@@ -52,30 +51,34 @@ if not os.path.exists("test_resize_128x128/"):
 # test_resized = "test_resize_512x512/"
 # train_resized = "train_resize_512x512/"
 
-# test_resized = "test_resize_128x128/"
-# train_resized = "train_resize_128x128/"
+test_resized = "test_resize_128x128/"
+train_resized = "train_resize_128x128/"
 
-test_resized = "test_resize_1024x768/"
-train_resized = "train_resize_1024x768/"
+# test_resized = "test_resize_1024x768/"
+# train_resized = "train_resize_1024x768/"
 
 print("resizing training images and masks")
 for n, id_ in tqdm(enumerate(files), total=len(files)):
     path = id_
-    img = Image.open(path).convert('RGB')
-    img = img.resize((width, height), resample=Image.Resampling.BILINEAR)
-    img.save(os.path.join(train_resized, path.split("\\")[1]))
+    img = imread(path)[:,:,:chnls]
+    img = resize(img, (width, height), mode='constant', preserve_range=True, anti_aliasing=False)
+    # img.save(os.path.join(train_resized, path.split("\\")[1]))
 
     mask_adr = os.path.join(train_resized, path.split("\\")[1].replace(".jpg", "_masks\\"))
     if not os.path.exists(mask_adr):
         os.mkdir(mask_adr)
     X_train[n] = img
     msk_pth = path.replace('.jpg', '_masks\\')
-    mask = np.zeros((height, width, 1), dtype=bool)
-    for mid, mask_file in enumerate(next(os.walk(msk_pth))[2]):
+    mask = np.zeros((width, height, 1), dtype=bool)
+    import pdb;pdb.set_trace()
+    for mask_file in next(os.walk(msk_pth))[2]:
         mask_ = Image.open(msk_pth+mask_file)
-        mask_ = mask_.resize((width, height), resample=Image.Resampling.BILINEAR)
-        mask_.save(os.path.join(mask_adr, mask_file))
+        imshow(np.array(mask_))
+        plt.show()
+        mask_ = resize(mask_, (width, height), mode='constant', preserve_range=True, anti_aliasing=False)
+        # mask_.save(os.path.join(mask_adr, mask_file))
         mask_ = np.expand_dims(mask_, axis=-1)
+        print(mask_)
         mask = np.maximum(mask, mask_)
     Y_train[n] = mask
 
@@ -91,29 +94,28 @@ for file in os.listdir(test_d):
     if os.path.isfile(os.path.join(test_d, file)) and os.path.exists(os.path.join(test_d, file.replace(".jpg", "_masks\\"))):
         test_files.append(os.path.join(test_d, file))
 
-# test_files = test_files[:10]
+test_files=test_files[:5]
 
-X_test = np.zeros((len(files), height, width, chnls), dtype=np.uint8)
-Y_test = np.zeros((len(files), height, width, 1), dtype=bool)
+X_test = np.zeros((len(files), width, height, chnls), dtype=np.uint8)
+Y_test = np.zeros((len(files), width, height, 1), dtype=bool)
 
 print("resizing testing images and masks")
-
 for n, id_ in tqdm(enumerate(test_files), total=len(test_files)):
     path = id_
-    img = Image.open(path).convert('RGB')
-    img = img.resize((width, height), resample=Image.Resampling.BILINEAR)
-    img.save(os.path.join(test_resized, path.split("\\")[1]))
+    img = imread(path)[:,:,:chnls]
+    img = resize(img, (width, height), mode='constant', preserve_range=True, anti_aliasing=False)
+    # img.save(os.path.join(test_resized, path.split("\\")[1]))
 
     mask_adr = os.path.join(test_resized, path.split("\\")[1].replace(".jpg", "_masks\\"))
     if not os.path.exists(mask_adr):
         os.mkdir(mask_adr)
     X_test[n] = img
     msk_pth = path.replace('.jpg', '_masks\\')
-    mask = np.zeros((height, width, 1), dtype=bool)
+    mask = np.zeros((width, height, 1), dtype=bool)
     for mask_file in next(os.walk(msk_pth))[2]:
-        mask_ = Image.open(msk_pth+mask_file)
-        mask_ = mask_.resize((width, height), resample=Image.Resampling.BILINEAR)
-        mask_.save(os.path.join(mask_adr, mask_file))
+        mask_ = imread(msk_pth + mask_file)[:, :, :chnls]
+        mask_ = resize(mask_, (width, height), mode='constant', preserve_range=True, anti_aliasing=False)
+        # mask_.save(os.path.join(mask_adr, mask_file))
         mask_ = np.expand_dims(mask_, axis=-1)
         mask = np.maximum(mask, mask_)
     Y_test[n] = mask
@@ -124,7 +126,7 @@ Image.fromarray(X_test[image_x]).show()
 Image.fromarray(np.squeeze(Y_test[image_x])).show()
 # imshow(np.squeeze(Y_train[image_x]))
 
-inputs = Input((width,  height, chnls))
+inputs = Input((height,  width, chnls))
 
 lmda = Lambda(lambda x: x/255)(inputs)
 
@@ -181,19 +183,17 @@ outputs = Conv2D(1, (1, 1), activation='sigmoid')(con_9)
 
 model = Model(inputs=[inputs], outputs=[outputs])
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-model.summary()
-
-print(X_train.shape, Y_train.shape)
+print(model.summary())
 
 ################################
 # Modelcheckpoint
-checkpointer = tf.keras.callbacks.ModelCheckpoint('model_for_para.h5', verbose=1)
+checkpointer = tf.keras.callbacks.ModelCheckpoint('model_for_para.h5', verbose=1, save_best_only=True)
 
 callbacks = [
-    # tf.keras.callbacks.EarlyStopping(patience=2, monitor='accuracy'),
+    tf.keras.callbacks.EarlyStopping(patience=2, monitor='val_loss'),
     tf.keras.callbacks.TensorBoard(log_dir='logs')]
 
-results = model.fit(X_train, Y_train, validation_split=0.1, batch_size=16, validation_steps=39//16, epochs=25, steps_per_epoch=239//16, callbacks=callbacks )
+results = model.fit(X_train, Y_train, validation_split=0.1, batch_size=16, epochs=25, callbacks=callbacks)
 
 if not os.path.exists("saved_models"):
     os.mkdir("saved_models")
@@ -211,9 +211,11 @@ preds_train_t = (preds_train > 0.5).astype(np.uint8)
 preds_val_t = (preds_val > 0.5).astype(np.uint8)
 preds_test_t = (preds_test > 0.5).astype(np.uint8)
 
+print(preds_test_t)
+
 # Perform a sanity check on some random training samples
 ix = random.randint(0, len(preds_train_t))
-imshow(X_train[ix],)
+imshow(X_train[ix])
 plt.show()
 imshow(np.squeeze(Y_train[ix]))
 plt.show()

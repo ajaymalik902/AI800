@@ -17,8 +17,8 @@ import os
 
 def create_mask(img_size, coords, thickness, paths, dest_dir=None):
     print(img_size)
-    img = Image.new('L', img_size, 0)
-    ImageDraw.Draw(img).ellipse((coords[0] - thickness, coords[1] - thickness, coords[0] + thickness, coords[1] + thickness), fill='white')
+    img = Image.new("L", img_size, 0)
+    ImageDraw.Draw(img).ellipse((coords[0] - thickness, coords[1] - thickness, coords[0] + thickness, coords[1] + thickness), fill=255, outline='black')
     path = paths.split('\\')[2].replace(".jpg", "_masks/")
     if dest_dir:
         if not os.path.exists(dest_dir):
@@ -32,4 +32,4 @@ def create_mask(img_size, coords, thickness, paths, dest_dir=None):
         save_path = "raw_images/" + path
     if not os.path.exists(save_path):
         os.mkdir(save_path)
-    img.save(save_path + str(coords[0]) + "_" + str(coords[1]) + ".png")
+    img.save(save_path + str(coords[0]) + "_" + str(coords[1]) + ".jpg",)
