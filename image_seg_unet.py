@@ -5,6 +5,7 @@ if len(physical_devices) > 0:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 from tensorflow.keras.layers import Input, Conv2D, Lambda, Dropout, MaxPooling2D, Conv2DTranspose, concatenate
+from tensorflow.keras.regularizers import l2, l1
 from tensorflow.keras import Model
 import random
 from matplotlib import pyplot as plt
@@ -13,16 +14,19 @@ from tqdm import tqdm
 
 from skimage.io import imread, imshow
 from skimage.transform import resize
-from PIL import Image
+from PIL import Image, ImageOps
 
 import os
 
-width = 128
-height = 128
-chnls = 3
+width = 512
+height = 512
+chnls = 1
 
 train_d = "train_data\\"
 test_d = "test_data\\"
+
+# train_d = "train_resize_256x256\\"
+# test_d = "test_resize_256x256\\"
 
 # train_d = "train_resize_512x512\\"
 # test_d = "test_resize_512x512\\"
@@ -37,51 +41,67 @@ for file in os.listdir(train_d):
     if os.path.isfile(os.path.join(train_d, file)) and os.path.exists(os.path.join(train_d, file.replace(".jpg", "_masks\\"))):
         files.append(os.path.join(train_d, file))
 
-# files = files[:10]
+# files = files[:480]
 
 
 X_train = np.zeros((len(files), height, width, chnls), dtype=np.uint8)
 Y_train = np.zeros((len(files), height, width, 1), dtype=bool)
 
-if not os.path.exists("train_resize_128x128/"):
-    os.mkdir("train_resize_128x128/")
+test_resized = "test_resize_512x512\\"
+train_resized = "train_resize_512x512\\"
 
-if not os.path.exists("test_resize_128x128/"):
-    os.mkdir("test_resize_128x128/")
-
-# test_resized = "test_resize_512x512/"
-# train_resized = "train_resize_512x512/"
+# test_resized = "test_resize_256x256\\"
+# train_resized = "train_resize_256x256\\"
 
 # test_resized = "test_resize_128x128/"
 # train_resized = "train_resize_128x128/"
 
-test_resized = "test_resize_1024x768/"
-train_resized = "train_resize_1024x768/"
+# test_resized = "test_resize_1024x768/"
+# train_resized = "train_resize_1024x768/"
+
+if not os.path.exists(train_resized):
+    os.mkdir(train_resized)
+
+if not os.path.exists(test_resized):
+    os.mkdir(test_resized)
 
 print("resizing training images and masks")
 for n, id_ in tqdm(enumerate(files), total=len(files)):
     path = id_
-    img = Image.open(path).convert('RGB')
-    img = img.resize((width, height), resample=Image.Resampling.BILINEAR)
-    img.save(os.path.join(train_resized, path.split("\\")[1]))
+    img = Image.open(path)
+
+    if not os.path.exists(train_resized):
+        os.mkdir(train_resized)
+
+    if train_d != train_resized:
+        img = ImageOps.grayscale(img, )
+        img = img.resize((width, height), resample=Image.Resampling.BILINEAR)
+        img.save(os.path.join(train_resized, path.split("\\")[1]))
 
     mask_adr = os.path.join(train_resized, path.split("\\")[1].replace(".jpg", "_masks\\"))
-    if not os.path.exists(mask_adr):
-        os.mkdir(mask_adr)
+
+    # only needed when using greyscale
+    img = np.expand_dims(img, axis=-1)
     X_train[n] = img
-    msk_pth = path.replace('.jpg', '_masks\\')
     mask = np.zeros((height, width, 1), dtype=bool)
+    msk_pth = path.replace('.jpg', '_masks\\')
+
     for mid, mask_file in enumerate(next(os.walk(msk_pth))[2]):
         mask_ = Image.open(msk_pth+mask_file)
-        mask_ = mask_.resize((width, height), resample=Image.Resampling.BILINEAR)
-        mask_.save(os.path.join(mask_adr, mask_file))
+        if not os.path.exists(mask_adr):
+            os.mkdir(mask_adr)
+
+        if train_d != train_resized:
+            mask_ = mask_.resize((width, height), resample=Image.Resampling.BILINEAR)
+            mask_.save(os.path.join(mask_adr, mask_file))
+
         mask_ = np.expand_dims(mask_, axis=-1)
         mask = np.maximum(mask, mask_)
     Y_train[n] = mask
 
 
 image_x = random.randint(0, len(files)-1)
-Image.fromarray(X_train[image_x]).show()
+Image.fromarray(np.squeeze(X_train[image_x])).show()
 # Image._show(X_train[image_x])
 Image.fromarray(np.squeeze(Y_train[image_x])).show()
 # imshow(np.squeeze(Y_train[image_x]))
@@ -91,7 +111,7 @@ for file in os.listdir(test_d):
     if os.path.isfile(os.path.join(test_d, file)) and os.path.exists(os.path.join(test_d, file.replace(".jpg", "_masks\\"))):
         test_files.append(os.path.join(test_d, file))
 
-# test_files = test_files[:10]
+# test_files = test_files[:80]
 
 X_test = np.zeros((len(files), height, width, chnls), dtype=np.uint8)
 Y_test = np.zeros((len(files), height, width, 1), dtype=bool)
@@ -100,26 +120,32 @@ print("resizing testing images and masks")
 
 for n, id_ in tqdm(enumerate(test_files), total=len(test_files)):
     path = id_
-    img = Image.open(path).convert('RGB')
-    img = img.resize((width, height), resample=Image.Resampling.BILINEAR)
-    img.save(os.path.join(test_resized, path.split("\\")[1]))
+    img = Image.open(path)
+    if test_d != test_resized:
+        img = ImageOps.grayscale(img, )
+        img = img.resize((width, height), resample=Image.Resampling.BILINEAR)
+        img.save(os.path.join(test_resized, path.split("\\")[1]))
 
     mask_adr = os.path.join(test_resized, path.split("\\")[1].replace(".jpg", "_masks\\"))
     if not os.path.exists(mask_adr):
         os.mkdir(mask_adr)
+
+    # only needed when using greyscale
+    img = np.expand_dims(img, axis=-1)
     X_test[n] = img
     msk_pth = path.replace('.jpg', '_masks\\')
     mask = np.zeros((height, width, 1), dtype=bool)
     for mask_file in next(os.walk(msk_pth))[2]:
         mask_ = Image.open(msk_pth+mask_file)
-        mask_ = mask_.resize((width, height), resample=Image.Resampling.BILINEAR)
-        mask_.save(os.path.join(mask_adr, mask_file))
+        if test_d != test_resized:
+            mask_ = mask_.resize((width, height), resample=Image.Resampling.BILINEAR)
+            mask_.save(os.path.join(mask_adr, mask_file))
         mask_ = np.expand_dims(mask_, axis=-1)
         mask = np.maximum(mask, mask_)
     Y_test[n] = mask
 
 image_x = random.randint(0, len(test_files)-1)
-Image.fromarray(X_test[image_x]).show()
+Image.fromarray(np.squeeze(X_test[image_x])).show()
 # Image._show(X_train[image_x])
 Image.fromarray(np.squeeze(Y_test[image_x])).show()
 # imshow(np.squeeze(Y_train[image_x]))
@@ -193,7 +219,7 @@ callbacks = [
     # tf.keras.callbacks.EarlyStopping(patience=2, monitor='accuracy'),
     tf.keras.callbacks.TensorBoard(log_dir='logs')]
 
-results = model.fit(X_train, Y_train, validation_split=0.1, batch_size=16, validation_steps=39//16, epochs=25, steps_per_epoch=239//16, callbacks=callbacks )
+results = model.fit(X_train, Y_train, validation_split=0.1, batch_size=4, epochs=25, callbacks=callbacks)
 
 if not os.path.exists("saved_models"):
     os.mkdir("saved_models")

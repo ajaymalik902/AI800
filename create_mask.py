@@ -4,6 +4,7 @@ from cv2 import rectangle, circle, imshow, waitKey, LINE_AA, imwrite
 import numpy as np
 import os
 
+
 # polygon = [(x1,y1),(x2,y2),...] or [x1,y1,x2,y2,...]
 # width = ?
 # height = ?
@@ -15,21 +16,7 @@ import os
 # img.show()
 
 
-def create_mask(img_size, coords, thickness, paths, dest_dir=None):
-    print(img_size)
-    img = Image.new("L", img_size, 0)
-    ImageDraw.Draw(img).ellipse((coords[0] - thickness, coords[1] - thickness, coords[0] + thickness, coords[1] + thickness), fill=255, outline='black')
-    path = paths.split('\\')[2].replace(".jpg", "_masks/")
-    if dest_dir:
-        if not os.path.exists(dest_dir):
-            os.mkdir(dest_dir)
-
-        save_path = os.path.join(dest_dir, path)
-    else:
-        if not os.path.exists("raw_images"):
-            os.mkdir("raw_images")
-
-        save_path = "raw_images/" + path
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
-    img.save(save_path + str(coords[0]) + "_" + str(coords[1]) + ".jpg",)
+def create_mask(img, coords, thickness):
+    ImageDraw.Draw(img).ellipse(
+        (coords[0] - thickness, coords[1] - thickness, coords[0] + thickness, coords[1] + thickness), fill=255,
+        outline=None)
